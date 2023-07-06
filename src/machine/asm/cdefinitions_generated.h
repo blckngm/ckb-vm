@@ -219,11 +219,11 @@
 
 #ifdef CKB_VM_ASM_GENERATE_LABEL_TABLES
 #ifdef __APPLE__
-.global _ckb_vm_asm_labels
-_ckb_vm_asm_labels:
+.global _ckb_vm_0_24_asm_labels
+_ckb_vm_0_24_asm_labels:
 #else
-.global ckb_vm_asm_labels
-ckb_vm_asm_labels:
+.global ckb_vm_0_24_asm_labels
+ckb_vm_0_24_asm_labels:
 #endif
 .CKB_VM_ASM_LABEL_TABLE:
 	.long	.exit_slowpath - .CKB_VM_ASM_LABEL_TABLE

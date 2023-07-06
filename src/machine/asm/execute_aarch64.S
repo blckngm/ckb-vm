@@ -126,9 +126,9 @@
   mov IMMEDIATE, TEMP1
 
 #ifdef __APPLE__
-#define CALL_INITED_MEMORY bl _inited_memory
+#define CALL_INITED_MEMORY bl _ckb_vm_0_24_inited_memory
 #else
-#define CALL_INITED_MEMORY bl inited_memory
+#define CALL_INITED_MEMORY bl ckb_vm_0_24_inited_memory
 #endif
 
 /*
@@ -284,11 +284,11 @@
 
 .p2align 3
 #ifdef __APPLE__
-.globl _ckb_vm_x64_execute
-_ckb_vm_x64_execute:
+.globl _ckb_vm_0_24_x64_execute
+_ckb_vm_0_24_x64_execute:
 #else
-.globl ckb_vm_x64_execute
-ckb_vm_x64_execute:
+.globl ckb_vm_0_24_x64_execute
+ckb_vm_0_24_x64_execute:
 #endif
   stp x19, x20, [sp, -96]!
   stp x21, x22, [sp, 16]

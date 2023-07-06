@@ -79,7 +79,7 @@ impl CoreMachine for Box<AsmCoreMachine> {
 // is stored in `rsi`, there is no need to exchange the values in the two registers
 // in this way.
 #[no_mangle]
-pub extern "C" fn inited_memory(frame_index: u64, machine: &mut AsmCoreMachine) {
+pub extern "C" fn ckb_vm_0_24_inited_memory(frame_index: u64, machine: &mut AsmCoreMachine) {
     let addr_from = (frame_index << MEMORY_FRAME_SHIFTS) as usize;
     let addr_to = ((frame_index + 1) << MEMORY_FRAME_SHIFTS) as usize;
     if machine.chaos_mode != 0 {
@@ -94,7 +94,7 @@ pub extern "C" fn inited_memory(frame_index: u64, machine: &mut AsmCoreMachine) 
 fn check_memory(machine: &mut AsmCoreMachine, page: u64) {
     let frame = page >> MEMORY_FRAME_PAGE_SHIFTS;
     if machine.frames[frame as usize] == 0 {
-        inited_memory(frame, machine);
+        ckb_vm_0_24_inited_memory(frame, machine);
         machine.frames[frame as usize] = 1;
     }
 }
@@ -593,10 +593,10 @@ impl SupportMachine for Box<AsmCoreMachine> {
 }
 
 extern "C" {
-    pub fn ckb_vm_x64_execute(m: *mut AsmCoreMachine, d: *const InvokeData) -> c_uchar;
+    pub fn ckb_vm_0_24_x64_execute(m: *mut AsmCoreMachine, d: *const InvokeData) -> c_uchar;
     // We are keeping this as a function here, but at the bottom level this really
     // just points to an array of assembly label offsets for each opcode.
-    pub fn ckb_vm_asm_labels();
+    pub fn ckb_vm_0_24_asm_labels();
 }
 
 pub struct AsmMachine<Ctx = ()> {
@@ -648,7 +648,7 @@ impl<Ctx: ExecutionContext<Box<AsmCoreMachine>>> AsmMachine<Ctx> {
                     fixed_traces: decoder.fixed_traces(),
                     fixed_trace_mask: decoder.fixed_trace_size().wrapping_sub(1),
                 };
-                ckb_vm_x64_execute(&mut **self.machine.inner_mut(), &data as *const _)
+                ckb_vm_0_24_x64_execute(&mut **self.machine.inner_mut(), &data as *const _)
             };
             match result {
                 RET_DECODE_TRACE => decoder.prepare_traces(&mut self.machine)?,
@@ -684,7 +684,7 @@ impl<Ctx: ExecutionContext<Box<AsmCoreMachine>>> AsmMachine<Ctx> {
                 fixed_traces: &trace as *const FixedTrace,
                 fixed_trace_mask: 0,
             };
-            ckb_vm_x64_execute(&mut **self.machine.inner_mut(), &data as *const _)
+            ckb_vm_0_24_x64_execute(&mut **self.machine.inner_mut(), &data as *const _)
         };
         match result {
             RET_DECODE_TRACE => (),

@@ -12,7 +12,7 @@ use crate::{
         is_slowpath_instruction,
     },
     machine::{
-        asm::{ckb_vm_asm_labels, AsmCoreMachine},
+        asm::{ckb_vm_0_24_asm_labels, AsmCoreMachine},
         CoreMachine, DefaultMachine,
     },
     memory::Memory,
@@ -34,8 +34,8 @@ pub trait TraceDecoder: InstDecoder {
 pub fn label_from_fastpath_opcode(opcode: InstructionOpcode) -> u64 {
     debug_assert!(!is_slowpath_instruction(blank_instruction(opcode)));
     unsafe {
-        u64::from(*(ckb_vm_asm_labels as *const u32).offset(opcode as u8 as isize))
-            + (ckb_vm_asm_labels as *const u32 as u64)
+        u64::from(*(ckb_vm_0_24_asm_labels as *const u32).offset(opcode as u8 as isize))
+            + (ckb_vm_0_24_asm_labels as *const u32 as u64)
     }
 }
 
