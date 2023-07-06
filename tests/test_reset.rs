@@ -4,20 +4,16 @@ use ckb_vm::cost_model::constant_cycles;
 use ckb_vm::machine::asm::{AsmCoreMachine, AsmMachine};
 use ckb_vm::machine::{DefaultCoreMachine, DefaultMachineBuilder, VERSION1};
 use ckb_vm::{
-    registers::A7, Error, Register, SparseMemory, SupportMachine, Syscalls, TraceMachine,
+    registers::A7, Error, ExecutionContext, Register, SparseMemory, SupportMachine, TraceMachine,
     WXorXMemory, DEFAULT_STACK_SIZE, ISA_IMC, ISA_MOP, RISCV_MAX_MEMORY,
 };
 
 #[allow(dead_code)]
 mod machine_build;
 
-pub struct CustomSyscall {}
+pub struct CustomSyscall;
 
-impl<Mac: SupportMachine> Syscalls<Mac> for CustomSyscall {
-    fn initialize(&mut self, _: &mut Mac) -> Result<(), Error> {
-        Ok(())
-    }
-
+impl<Mac: SupportMachine> ExecutionContext<Mac> for CustomSyscall {
     fn ecall(&mut self, machine: &mut Mac) -> Result<bool, Error> {
         let code = &machine.registers()[A7];
         if code.to_i32() != 1111 {
@@ -49,8 +45,8 @@ fn test_reset_int() {
         u64::max_value(),
     );
     let mut machine = DefaultMachineBuilder::new(core_machine)
+        .context(CustomSyscall)
         .instruction_cycle_func(Box::new(constant_cycles))
-        .syscall(Box::new(CustomSyscall {}))
         .build();
     machine.load_program(&code, &vec![]).unwrap();
     let result = machine.run();
@@ -72,8 +68,8 @@ fn test_reset_int_with_trace() {
     );
     let mut machine = TraceMachine::new(
         DefaultMachineBuilder::new(core_machine)
+            .context(CustomSyscall)
             .instruction_cycle_func(Box::new(constant_cycles))
-            .syscall(Box::new(CustomSyscall {}))
             .build(),
     );
     machine.load_program(&code, &vec![]).unwrap();
@@ -92,8 +88,8 @@ fn test_reset_asm() {
 
     let asm_core = AsmCoreMachine::new(ISA_IMC | ISA_MOP, VERSION1, u64::max_value());
     let core = DefaultMachineBuilder::<Box<AsmCoreMachine>>::new(asm_core)
+        .context(CustomSyscall)
         .instruction_cycle_func(Box::new(constant_cycles))
-        .syscall(Box::new(CustomSyscall {}))
         .build();
     let mut machine = AsmMachine::new(core);
     machine.load_program(&code, &vec![]).unwrap();

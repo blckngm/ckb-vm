@@ -2,8 +2,8 @@ use ckb_vm::cost_model::constant_cycles;
 use ckb_vm::machine::VERSION0;
 use ckb_vm::registers::{A0, A1, A2, A3, A4, A5, A7};
 use ckb_vm::{
-    run, CoreMachine, Debugger, DefaultCoreMachine, DefaultMachineBuilder, Error, FlatMemory,
-    Memory, Register, SparseMemory, SupportMachine, Syscalls, WXorXMemory, ISA_IMC,
+    run, CoreMachine, DefaultCoreMachine, DefaultMachineBuilder, Error, ExecutionContext,
+    FlatMemory, Memory, Register, SparseMemory, SupportMachine, WXorXMemory, ISA_IMC,
     RISCV_MAX_MEMORY, RISCV_PAGESIZE,
 };
 #[cfg(has_asm)]
@@ -29,36 +29,32 @@ pub fn test_nop() {
     assert_eq!(result.unwrap(), 0);
 }
 
-pub struct CustomSyscall {}
-
-impl<Mac: SupportMachine> Syscalls<Mac> for CustomSyscall {
-    fn initialize(&mut self, _machine: &mut Mac) -> Result<(), Error> {
-        Ok(())
+fn custom_syscall(machine: &mut impl SupportMachine) -> Result<bool, Error> {
+    let code = &machine.registers()[A7];
+    if code.to_i32() != 1111 {
+        return Ok(false);
     }
-
-    fn ecall(&mut self, machine: &mut Mac) -> Result<bool, Error> {
-        let code = &machine.registers()[A7];
-        if code.to_i32() != 1111 {
-            return Ok(false);
-        }
-        let result = machine.registers()[A0]
-            .overflowing_add(&machine.registers()[A1])
-            .overflowing_add(&machine.registers()[A2])
-            .overflowing_add(&machine.registers()[A3])
-            .overflowing_add(&machine.registers()[A4])
-            .overflowing_add(&machine.registers()[A5]);
-        machine.set_register(A0, result);
-        Ok(true)
-    }
+    let result = machine.registers()[A0]
+        .overflowing_add(&machine.registers()[A1])
+        .overflowing_add(&machine.registers()[A2])
+        .overflowing_add(&machine.registers()[A3])
+        .overflowing_add(&machine.registers()[A4])
+        .overflowing_add(&machine.registers()[A5]);
+    machine.set_register(A0, result);
+    Ok(true)
 }
 
 #[test]
 pub fn test_custom_syscall() {
+    let mut called = 0;
     let buffer = fs::read("tests/programs/syscall64").unwrap().into();
     let core_machine =
         DefaultCoreMachine::<u64, SparseMemory<u64>>::new(ISA_IMC, VERSION0, u64::max_value());
     let mut machine = DefaultMachineBuilder::new(core_machine)
-        .syscall(Box::new(CustomSyscall {}))
+        .syscall(|mac| {
+            called += 1;
+            custom_syscall(mac)
+        })
         .build();
     machine
         .load_program(&buffer, &vec!["syscall".into()])
@@ -66,13 +62,14 @@ pub fn test_custom_syscall() {
     let result = machine.run();
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), 39);
+    assert_eq!(called, 1);
 }
 
 pub struct CustomDebugger {
     pub value: Arc<AtomicU8>,
 }
 
-impl<Mac: SupportMachine> Debugger<Mac> for CustomDebugger {
+impl<Mac: SupportMachine> ExecutionContext<Mac> for CustomDebugger {
     fn initialize(&mut self, _machine: &mut Mac) -> Result<(), Error> {
         self.value.store(1, Ordering::Relaxed);
         Ok(())
@@ -91,9 +88,9 @@ pub fn test_ebreak() {
     let core_machine =
         DefaultCoreMachine::<u64, SparseMemory<u64>>::new(ISA_IMC, VERSION0, u64::max_value());
     let mut machine = DefaultMachineBuilder::new(core_machine)
-        .debugger(Box::new(CustomDebugger {
+        .context(CustomDebugger {
             value: Arc::clone(&value),
-        }))
+        })
         .build();
     machine
         .load_program(&buffer, &vec!["ebreak".into()])
@@ -365,28 +362,20 @@ pub fn test_rvc_pageend() {
     assert_eq!(result.unwrap(), 0);
 }
 
-pub struct OutOfCyclesSyscall {}
-
-impl<Mac: SupportMachine> Syscalls<Mac> for OutOfCyclesSyscall {
-    fn initialize(&mut self, _machine: &mut Mac) -> Result<(), Error> {
-        Ok(())
+fn out_of_cycles_syscall<Mac: SupportMachine>(machine: &mut Mac) -> Result<bool, Error> {
+    let code = &machine.registers()[A7];
+    if code.to_i32() != 1111 {
+        return Ok(false);
     }
-
-    fn ecall(&mut self, machine: &mut Mac) -> Result<bool, Error> {
-        let code = &machine.registers()[A7];
-        if code.to_i32() != 1111 {
-            return Ok(false);
-        }
-        machine.add_cycles_no_checking(100)?;
-        let result = machine.registers()[A0]
-            .overflowing_add(&machine.registers()[A1])
-            .overflowing_add(&machine.registers()[A2])
-            .overflowing_add(&machine.registers()[A3])
-            .overflowing_add(&machine.registers()[A4])
-            .overflowing_add(&machine.registers()[A5]);
-        machine.set_register(A0, result);
-        Ok(true)
-    }
+    machine.add_cycles_no_checking(100)?;
+    let result = machine.registers()[A0]
+        .overflowing_add(&machine.registers()[A1])
+        .overflowing_add(&machine.registers()[A2])
+        .overflowing_add(&machine.registers()[A3])
+        .overflowing_add(&machine.registers()[A4])
+        .overflowing_add(&machine.registers()[A5]);
+    machine.set_register(A0, result);
+    Ok(true)
 }
 
 #[test]
@@ -394,8 +383,8 @@ pub fn test_outofcycles_in_syscall() {
     let buffer = fs::read("tests/programs/syscall64").unwrap().into();
     let core_machine = DefaultCoreMachine::<u64, SparseMemory<u64>>::new(ISA_IMC, VERSION0, 20);
     let mut machine = DefaultMachineBuilder::new(core_machine)
-        .instruction_cycle_func(Box::new(constant_cycles))
-        .syscall(Box::new(OutOfCyclesSyscall {}))
+        .instruction_cycle_func(constant_cycles)
+        .syscall(out_of_cycles_syscall)
         .build();
     machine
         .load_program(&buffer, &vec!["syscall".into()])
