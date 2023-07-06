@@ -177,11 +177,11 @@
 #endif
 
 #ifdef __APPLE__
-#define CALL_INITED_MEMORY call _inited_memory
+#define CALL_INITED_MEMORY call _ckb_vm_0_24_inited_memory
 #elif defined IS_WINDOWS
-#define CALL_INITED_MEMORY call inited_memory
+#define CALL_INITED_MEMORY call ckb_vm_0_24_inited_memory
 #else
-#define CALL_INITED_MEMORY call inited_memory@plt
+#define CALL_INITED_MEMORY call ckb_vm_0_24_inited_memory@plt
 #endif
 
 /*
@@ -386,11 +386,11 @@
   movzbl %ch, RS4_TEMP1d
 
 #ifdef __APPLE__
-.globl _ckb_vm_x64_execute
-_ckb_vm_x64_execute:
+.globl _ckb_vm_0_24_x64_execute
+_ckb_vm_0_24_x64_execute:
 #else
-.globl ckb_vm_x64_execute
-ckb_vm_x64_execute:
+.globl ckb_vm_0_24_x64_execute
+ckb_vm_0_24_x64_execute:
 #endif
 #ifdef IS_WINDOWS
   push %rsi
